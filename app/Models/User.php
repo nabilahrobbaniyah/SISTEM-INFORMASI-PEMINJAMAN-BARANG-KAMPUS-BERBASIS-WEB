@@ -55,6 +55,11 @@ class User extends Authenticatable
         return $this->hasMany(AppNotification::class);
     }
 
+    public function aiConversations(): HasMany
+    {
+        return $this->hasMany(AiConversation::class);
+    }
+
     public function unreadNotificationCount(): int
     {
         return $this->appNotifications()->whereNull('read_at')->count();

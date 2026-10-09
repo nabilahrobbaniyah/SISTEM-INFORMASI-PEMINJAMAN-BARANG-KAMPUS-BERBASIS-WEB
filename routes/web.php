@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ItemController;
 use App\Http\Controllers\Admin\LoanController as AdminLoanController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\LoanPrintController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Peminjam\CatalogController;
@@ -35,6 +36,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifikasi', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifikasi/{notification}/buka', [NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifikasi/baca-semua', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+
+    // Asisten ketersediaan barang
+    Route::get('/asisten', [AssistantController::class, 'index'])->name('assistant.index');
+    Route::post('/asisten/tanya', [AssistantController::class, 'ask'])->middleware('throttle:20,1')->name('assistant.ask');
+    Route::post('/asisten/hapus', [AssistantController::class, 'clear'])->name('assistant.clear');
 
     // Bukti peminjaman (peminjam pemilik atau petugas)
     Route::get('/peminjaman/{loan}/cetak', [LoanPrintController::class, 'show'])->name('loans.print');

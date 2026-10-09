@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 # SISTEM-INFORMASI-PEMINJAMAN-BARANG-KAMPUS-BERBASIS-WEB
 RENCANA KONSTRUKSI SOFTWARE  
+=======
+## IMPAL-01-06
+Teknologi yang digunakan: PHP 8 | Laravel | MySQL | Bootstrap 5 | JavaScript | HTML5 & CSS3
+>>>>>>> 14b6f4ef24d91a5da0543c3f9b33db0c6a079352

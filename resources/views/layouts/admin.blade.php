@@ -78,6 +78,10 @@
                            href="{{ route('peminjam.loans.create') }}">Ajukan Peminjaman</a>
                     </li>
                 @endif
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('assistant.*') ? 'active' : '' }}"
+                       href="{{ route('assistant.index') }}">Asisten AI</a>
+                </li>
             </ul>
 
             <a href="{{ route('notifications.index') }}" class="btn btn-outline-light btn-sm me-2 position-relative">
