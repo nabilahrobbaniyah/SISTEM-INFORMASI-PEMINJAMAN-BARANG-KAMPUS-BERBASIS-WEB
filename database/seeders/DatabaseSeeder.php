@@ -14,9 +14,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $akun = [
-            ['Admin Kampus', 'admin@kampus.test', 'admin', null],
-            ['Petugas Inventaris', 'petugas@kampus.test', 'petugas', 'P-0001'],
-            ['Peminjam Contoh', 'peminjam@kampus.test', 'peminjam', '103072400000'],
+            ['Admin Kampus', 'admin@kampus.ac.id', 'admin', null],
+            ['Petugas Inventaris', 'petugas@kampus.ac.id', 'petugas', 'P-0001'],
+            ['Peminjam Contoh', 'peminjam@kampus.ac.id', 'peminjam', '103072400000'],
         ];
 
         foreach ($akun as [$name, $email, $role, $identity]) {
