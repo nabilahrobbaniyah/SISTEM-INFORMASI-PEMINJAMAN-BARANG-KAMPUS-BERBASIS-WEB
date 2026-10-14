@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Item;
+use App\Models\LoanDetail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ItemController extends Controller
@@ -103,22 +106,44 @@ class ItemController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
             'total_quantity' => ['required', 'integer', 'min:0'],
-            'available_quantity' => ['required', 'integer', 'min:0', 'lte:total_quantity'],
             'condition' => ['required', Rule::in(Item::CONDITIONS)],
             'location' => ['required', 'string', 'max:150'],
             'image' => ['nullable', 'image', 'max:2048'],
         ]);
 
-        if ($request->hasFile('image')) {
-            if ($item->image) {
-                Storage::disk('public')->delete($item->image);
-            }
-            $data['image'] = $request->file('image')->store('items', 'public');
-        } else {
-            unset($data['image']);
-        }
+        DB::transaction(function () use ($request, $item, &$data) {
+            $item = Item::lockForUpdate()->findOrFail($item->id);
+            $activeLoans = LoanDetail::where('item_id', $item->id)
+                ->whereHas('loan', fn ($query) => $query->whereIn('status', ['disetujui', 'dipinjam']))
+                ->exists();
+            $newTotal = (int) $data['total_quantity'];
 
-        $item->update($data);
+            if ($newTotal < $item->total_quantity && $activeLoans) {
+                throw ValidationException::withMessages([
+                    'total_quantity' => 'Jumlah total tidak dapat dikurangi selama masih ada peminjaman aktif atau disetujui.',
+                ]);
+            }
+
+            $newAvailable = $item->available_quantity + ($newTotal - $item->total_quantity);
+
+            if ($newAvailable < 0) {
+                throw ValidationException::withMessages([
+                    'total_quantity' => 'Jumlah total tidak boleh lebih kecil dari stok yang sedang tersedia.',
+                ]);
+            }
+
+            if ($request->hasFile('image')) {
+                if ($item->image) {
+                    Storage::disk('public')->delete($item->image);
+                }
+                $data['image'] = $request->file('image')->store('items', 'public');
+            } else {
+                unset($data['image']);
+            }
+
+            $data['available_quantity'] = $newAvailable;
+            $item->update($data);
+        });
 
         AuditLog::record('barang', "Mengubah barang {$item->item_code} - {$item->name}.");
 
