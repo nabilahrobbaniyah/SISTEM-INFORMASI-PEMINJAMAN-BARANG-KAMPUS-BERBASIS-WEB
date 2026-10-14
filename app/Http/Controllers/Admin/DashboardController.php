@@ -6,13 +6,53 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\Loan;
+use App\Models\LoanDetail;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     public function index(): View
     {
-        $aktif = Item::where('is_active', true);
+        $aktif = Item::where('is_active', true)->where('condition', '!=', 'rusak berat');
+        $firstMonth = now()->startOfMonth()->subMonths(5);
+        $months = collect(range(0, 5))->map(function (int $offset) use ($firstMonth) {
+            $start = $firstMonth->copy()->addMonths($offset);
+            $end = $start->copy()->endOfMonth();
+
+            $overdueCount = Loan::whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
+                ->where(function ($query) {
+                    $query->where(function ($active) {
+                        $active->where('status', 'dipinjam')
+                            ->whereDate('due_date', '<', now()->toDateString());
+                    })->orWhere(function ($returned) {
+                        $returned->where('status', 'dikembalikan')
+                            ->whereRaw('DATE(returned_at) > DATE(due_date)');
+                    });
+                })
+                ->count();
+
+            return [
+                'label' => $start->format('M Y'),
+                'loans' => Loan::whereBetween('loan_date', [$start->toDateString(), $end->toDateString()])->count(),
+                'overdue' => $overdueCount,
+            ];
+        });
+
+        $statusCounts = Loan::query()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $statusDistribution = collect(Loan::STATUS_LABELS)
+            ->map(fn ($label, $status) => ['label' => $label, 'total' => (int) ($statusCounts[$status] ?? 0)])
+            ->values();
+        $mostBorrowedItems = LoanDetail::query()
+            ->selectRaw('item_id, SUM(quantity) as loaned_quantity')
+            ->whereHas('loan', fn ($query) => $query->whereIn('status', ['dipinjam', 'dikembalikan']))
+            ->with('item')
+            ->groupBy('item_id')
+            ->orderByDesc('loaned_quantity')
+            ->limit(5)
+            ->get();
 
         return view('admin.dashboard', [
             'totalItems' => (clone $aktif)->count(),
@@ -31,6 +71,16 @@ class DashboardController extends Controller
                 ->oldest()
                 ->take(5)
                 ->get(),
+            'chartData' => [
+                'months' => $months->pluck('label')->all(),
+                'loans' => $months->pluck('loans')->all(),
+                'overdue' => $months->pluck('overdue')->all(),
+                'popularItems' => $mostBorrowedItems->map(fn ($detail) => [
+                    'name' => $detail->item->name,
+                    'quantity' => (int) $detail->loaned_quantity,
+                ])->all(),
+                'statuses' => $statusDistribution->all(),
+            ],
         ]);
     }
 }

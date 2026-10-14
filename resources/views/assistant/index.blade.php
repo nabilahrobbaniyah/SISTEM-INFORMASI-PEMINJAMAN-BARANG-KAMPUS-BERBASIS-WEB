@@ -9,6 +9,10 @@
         Saya tidak menjawab hal di luar itu.
         <span class="badge bg-secondary">{{ $mode === 'llm' ? 'Mode AI' : 'Mode aturan' }}</span>
     </p>
+    <div class="alert alert-info py-2 small">
+        Riwayat pertanyaan tersimpan di akun Anda dan dapat dihapus kapan saja. Pertanyaan tidak dikirim ke penyedia AI;
+        bila mode AI aktif, yang dikirim hanya fakta ketersediaan barang yang diperlukan untuk menyusun jawaban.
+    </div>
 
     <div class="card">
         <div id="chat" class="card-body" style="height: 420px; overflow-y: auto; background: #f8f9fa;">

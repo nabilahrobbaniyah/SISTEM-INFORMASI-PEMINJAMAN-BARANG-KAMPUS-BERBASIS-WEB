@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Item;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CatalogController extends Controller
@@ -13,8 +14,11 @@ class CatalogController extends Controller
     public function index(Request $request): View
     {
         $request->validate([
-            'loan_date' => ['nullable', 'date'],
-            'due_date' => ['nullable', 'date', 'after_or_equal:loan_date'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'loan_date' => ['nullable', 'date_format:Y-m-d', 'required_with:due_date'],
+            'due_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:loan_date', 'required_with:loan_date'],
+            'view' => ['nullable', Rule::in(['cards', 'table'])],
         ]);
 
         $search = $request->input('q');
@@ -48,6 +52,7 @@ class CatalogController extends Controller
             'items' => $items,
             'categories' => Category::orderBy('name')->get(),
             'hasPeriod' => $hasPeriod,
+            'catalogView' => $request->input('view', 'cards'),
         ]);
     }
 }

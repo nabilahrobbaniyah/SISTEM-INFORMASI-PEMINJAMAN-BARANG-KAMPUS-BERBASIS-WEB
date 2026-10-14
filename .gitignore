@@ -1,4 +1,13 @@
 *.log
+*.pem
+*.p12
+*.pfx
+*.key
+*.tmp
+*.temp
+*.swp
+.env.*
+!.env.example
 .DS_Store
 .env
 .env.backup
@@ -18,6 +27,11 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*.log
+/bootstrap/cache/*.php
 /vendor
 Homestead.json
 Homestead.yaml

@@ -38,23 +38,14 @@
         @error('condition')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
 
-    <div class="col-md-{{ $isEdit ? 6 : 12 }}">
-        <label for="total_quantity" class="form-label">Jumlah total</label>
+    <div class="col-12">
+        <label for="total_quantity" class="form-label">Jumlah total layak pinjam</label>
         <input type="number" id="total_quantity" name="total_quantity" min="{{ $isEdit ? 0 : 1 }}"
                value="{{ old('total_quantity', $item->total_quantity) }}"
                class="form-control @error('total_quantity') is-invalid @enderror" required>
         @error('total_quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        <div class="form-text">Stok di tempat dihitung otomatis. Stok total tidak dapat dikurangi selama ada peminjaman aktif atau disetujui.</div>
     </div>
-    @if ($isEdit)
-        <div class="col-md-6">
-            <label for="available_quantity" class="form-label">Jumlah tersedia</label>
-            <input type="number" id="available_quantity" name="available_quantity" min="0"
-                   value="{{ old('available_quantity', $item->available_quantity) }}"
-                   class="form-control @error('available_quantity') is-invalid @enderror" required>
-            @error('available_quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            <div class="form-text">Tidak boleh lebih besar dari jumlah total.</div>
-        </div>
-    @endif
 
     <div class="col-12">
         <label for="location" class="form-label">Lokasi penyimpanan</label>

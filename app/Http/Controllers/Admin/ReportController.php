@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Loan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -29,6 +30,7 @@ class ReportController extends Controller
 
     public function csv(Request $request): StreamedResponse
     {
+        $this->data($request);
         $loans = $this->query($request)->get();
 
         return response()->streamDownload(function () use ($loans) {
@@ -38,13 +40,13 @@ class ReportController extends Controller
 
             foreach ($loans as $loan) {
                 fputcsv($out, [
-                    $loan->loan_code,
-                    $loan->user->name,
-                    $loan->user->identity_number,
+                    $this->csvCell($loan->loan_code),
+                    $this->csvCell($loan->user->name),
+                    $this->csvCell($loan->user->identity_number),
                     $loan->loan_date->format('d/m/Y'),
                     $loan->due_date->format('d/m/Y'),
-                    $loan->statusLabel(),
-                    $loan->details->map(fn ($d) => $d->item->name.' x'.$d->quantity)->implode('; '),
+                    $this->csvCell($loan->statusLabel()),
+                    $this->csvCell($loan->details->map(fn ($d) => $d->item->name.' x'.$d->quantity)->implode('; ')),
                     $loan->returned_at?->format('d/m/Y H:i'),
                 ]);
             }
@@ -55,24 +57,18 @@ class ReportController extends Controller
 
     private function query(Request $request)
     {
-        $status = $request->input('status');
-        $from = $request->input('from');
-        $to = $request->input('to');
+        $filters = $this->filters($request);
 
         return Loan::with(['user', 'details.item'])
-            ->when($status, fn ($q, $v) => $q->where('status', $v))
-            ->when($from, fn ($q, $v) => $q->whereDate('loan_date', '>=', $v))
-            ->when($to, fn ($q, $v) => $q->whereDate('loan_date', '<=', $v))
+            ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
+            ->when($filters['from'] ?? null, fn ($q, $v) => $q->whereDate('loan_date', '>=', $v))
+            ->when($filters['to'] ?? null, fn ($q, $v) => $q->whereDate('loan_date', '<=', $v))
             ->orderBy('loan_date', 'desc');
     }
 
     private function data(Request $request): array
     {
-        $request->validate([
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date', 'after_or_equal:from'],
-            'status' => ['nullable', 'string'],
-        ]);
+        $filters = $this->filters($request);
 
         $summary = (clone $this->query($request))
             ->reorder()
@@ -82,8 +78,35 @@ class ReportController extends Controller
 
         return [
             'summary' => $summary,
-            'from' => $request->input('from'),
-            'to' => $request->input('to'),
+            'from' => $filters['from'] ?? null,
+            'to' => $filters['to'] ?? null,
         ];
+    }
+
+    /**
+     * @return array{from: ?string, to: ?string, status: ?string}
+     */
+    private function filters(Request $request): array
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'status' => ['nullable', Rule::in(array_keys(Loan::STATUS_LABELS))],
+        ]);
+
+        return [
+            'from' => $validated['from'] ?? null,
+            'to' => $validated['to'] ?? null,
+            'status' => $validated['status'] ?? null,
+        ];
+    }
+
+    private function csvCell(?string $value): string
+    {
+        $value ??= '';
+
+        return preg_match('/^[\t\r\n ]*[=+\-@]/u', $value) === 1
+            ? "'".$value
+            : $value;
     }
 }

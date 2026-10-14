@@ -71,6 +71,33 @@
         </div>
     </div>
 
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Tren peminjaman dan keterlambatan (6 bulan)</div>
+                <div class="card-body"><canvas id="loanTrendChart" role="img" aria-label="Grafik peminjaman dan keterlambatan"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Barang paling sering dipinjam</div>
+                <div class="card-body">
+                    @if (count($chartData['popularItems']))
+                        <canvas id="popularItemsChart" role="img" aria-label="Grafik barang paling sering dipinjam"></canvas>
+                    @else
+                        <p class="text-muted mb-0">Belum ada data serah-terima peminjaman.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Distribusi status peminjaman</div>
+                <div class="card-body"><canvas id="loanStatusChart" role="img" aria-label="Grafik distribusi status peminjaman"></canvas></div>
+            </div>
+        </div>
+    </div>
+
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Pengajuan yang menunggu</span>
@@ -126,3 +153,43 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        const chartData = @js($chartData);
+        const statusColors = ['#f0ad4e', '#0dcaf0', '#dc3545', '#0d6efd', '#198754', '#6c757d'];
+
+        new Chart(document.getElementById('loanTrendChart'), {
+            type: 'line',
+            data: {
+                labels: chartData.months,
+                datasets: [
+                    { label: 'Peminjaman', data: chartData.loans, borderColor: '#0d6efd', backgroundColor: '#0d6efd22', fill: true, tension: 0.25 },
+                    { label: 'Terlambat', data: chartData.overdue, borderColor: '#dc3545', backgroundColor: '#dc354522', fill: true, tension: 0.25 },
+                ],
+            },
+            options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+        });
+
+        if (document.getElementById('popularItemsChart')) {
+            new Chart(document.getElementById('popularItemsChart'), {
+                type: 'bar',
+                data: {
+                    labels: chartData.popularItems.map((item) => item.name),
+                    datasets: [{ label: 'Unit dipinjam', data: chartData.popularItems.map((item) => item.quantity), backgroundColor: '#0d6efd' }],
+                },
+                options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } },
+            });
+        }
+
+        new Chart(document.getElementById('loanStatusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: chartData.statuses.map((status) => status.label),
+                datasets: [{ data: chartData.statuses.map((status) => status.total), backgroundColor: statusColors }],
+            },
+            options: { responsive: true },
+        });
+    </script>
+@endpush

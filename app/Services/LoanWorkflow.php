@@ -235,15 +235,33 @@ class LoanWorkflow
                     throw new RuntimeException('Kondisi setiap barang yang dikembalikan wajib diisi.');
                 }
 
+                if (! in_array($input['condition'], Item::CONDITIONS, true)) {
+                    throw new RuntimeException('Kondisi barang yang dikembalikan tidak valid.');
+                }
+
+                $item = $items->get($detail->item_id);
+
+                if (! $item) {
+                    throw new RuntimeException('Data barang untuk pengembalian tidak ditemukan.');
+                }
+
                 $detail->update([
                     'return_condition' => $input['condition'],
                     'return_note' => $input['note'] ?? null,
                 ]);
 
-                $item = $items->get($detail->item_id);
-                if ($item) {
-                    $baru = min($item->total_quantity, $item->available_quantity + $detail->quantity);
-                    $item->update(['available_quantity' => $baru]);
+                if ($input['condition'] === 'baik') {
+                    if ($item->available_quantity + $detail->quantity > $item->total_quantity) {
+                        throw new RuntimeException("Stok tersedia {$item->name} tidak konsisten dengan jumlah peminjaman.");
+                    }
+
+                    $item->increment('available_quantity', $detail->quantity);
+                } else {
+                    if ($item->total_quantity - $detail->quantity < $item->available_quantity) {
+                        throw new RuntimeException("Jumlah stok layak pinjam {$item->name} tidak konsisten dengan pengembalian.");
+                    }
+
+                    $item->decrement('total_quantity', $detail->quantity);
                 }
             }
 

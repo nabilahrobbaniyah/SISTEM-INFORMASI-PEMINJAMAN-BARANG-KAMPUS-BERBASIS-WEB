@@ -38,17 +38,14 @@
                             @endif
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}"
-                           href="{{ route('admin.categories.index') }}">Kategori Barang</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.items.*') ? 'active' : '' }}"
-                           href="{{ route('admin.items.index') }}">Data Barang</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}"
-                           href="{{ route('admin.reports.index') }}">Laporan</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.categories.*', 'admin.items.*', 'admin.reports.*') ? 'active' : '' }}"
+                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Inventaris &amp; laporan</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('admin.categories.index') }}">Kategori Barang</a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.items.index') }}">Data Barang</a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.reports.index') }}">Laporan</a></li>
+                        </ul>
                     </li>
                     @if ($authUser->isAdmin())
                         <li class="nav-item dropdown">
@@ -69,13 +66,13 @@
                         <a class="nav-link {{ request()->routeIs('peminjam.catalog') ? 'active' : '' }}"
                            href="{{ route('peminjam.catalog') }}">Katalog Barang</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('peminjam.loans.index', 'peminjam.loans.show') ? 'active' : '' }}"
-                           href="{{ route('peminjam.loans.index') }}">Peminjaman Saya</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('peminjam.loans.create') ? 'active' : '' }}"
-                           href="{{ route('peminjam.loans.create') }}">Ajukan Peminjaman</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ request()->routeIs('peminjam.loans.*') ? 'active' : '' }}"
+                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Peminjaman</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('peminjam.loans.index') }}">Peminjaman Saya</a></li>
+                            <li><a class="dropdown-item" href="{{ route('peminjam.loans.create') }}">Ajukan Peminjaman</a></li>
+                        </ul>
                     </li>
                 @endif
                 <li class="nav-item">

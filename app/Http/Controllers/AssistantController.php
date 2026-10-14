@@ -7,6 +7,7 @@ use App\Services\AvailabilityAssistant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
 class AssistantController extends Controller
@@ -39,6 +40,16 @@ class AssistantController extends Controller
             'question.required' => 'Tulis pertanyaanmu dulu.',
             'question.max' => 'Pertanyaan terlalu panjang (maksimal 300 karakter).',
         ]);
+
+        $limiterKey = 'assistant:user:'.$request->user()->id;
+
+        if (RateLimiter::tooManyAttempts($limiterKey, 20)) {
+            return response()->json([
+                'message' => 'Batas pertanyaan asisten tercapai. Coba lagi sebentar.',
+            ], 429);
+        }
+
+        RateLimiter::hit($limiterKey, 60);
 
         $result = $this->assistant->ask($request->user(), $data['question']);
 

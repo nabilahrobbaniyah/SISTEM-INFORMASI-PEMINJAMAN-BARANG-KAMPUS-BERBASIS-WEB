@@ -30,16 +30,29 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'identity_number' => ['required', 'string', 'min:4', 'max:30', 'regex:/^[A-Za-z0-9.-]+$/', 'unique:users,identity_number'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $domains = config('campus.email_domains', []);
+        $emailDomain = mb_strtolower(substr(strrchr($data['email'], '@'), 1));
+
+        if (! in_array($emailDomain, $domains, true)) {
+            throw ValidationException::withMessages([
+                'email' => 'Gunakan alamat email resmi kampus untuk mendaftar.',
+            ]);
+        }
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'identity_number' => $data['identity_number'],
+            'password' => Hash::make($data['password']),
+            'role' => 'peminjam',
+            'is_active' => true,
         ]);
 
         event(new Registered($user));

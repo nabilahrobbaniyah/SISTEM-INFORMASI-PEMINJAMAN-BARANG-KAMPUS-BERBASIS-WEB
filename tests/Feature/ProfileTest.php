@@ -96,4 +96,50 @@ class ProfileTest extends TestCase
 
         $this->assertNotNull($user->fresh());
     }
+
+    public function test_last_active_administrator_cannot_delete_their_account(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->from('/profile')
+            ->delete('/profile', ['password' => 'password']);
+
+        $response->assertSessionHasErrorsIn('userDeletion', 'password');
+        $this->assertNotNull($admin->fresh());
+        $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_last_inactive_administrator_cannot_delete_their_account(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->from('/profile')
+            ->delete('/profile', ['password' => 'password'])
+            ->assertSessionHasErrorsIn('userDeletion', 'password');
+
+        $this->assertNotNull($admin->fresh());
+    }
+
+    public function test_administrator_can_delete_their_account_when_another_active_administrator_exists(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->delete('/profile', ['password' => 'password']);
+
+        $response->assertRedirect('/');
+        $this->assertNull($admin->fresh());
+        $this->assertSame(1, User::where('role', 'admin')->where('is_active', true)->count());
+    }
 }

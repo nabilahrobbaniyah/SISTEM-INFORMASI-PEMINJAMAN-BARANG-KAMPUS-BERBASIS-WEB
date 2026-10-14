@@ -6,8 +6,9 @@ use App\Models\Item;
 use App\Models\Loan;
 use App\Models\User;
 use DateTimeImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
-use Throwable;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Asisten yang hanya menjawab ketersediaan barang dan cara meminjam.
@@ -48,7 +49,7 @@ TXT;
         return match ($intent) {
             'procedure' => $this->plain($this->procedureText()),
             'help' => $this->plain($this->helpText()),
-            'availability' => $this->availability($user, $question, $parsed, $items, $matchedIds),
+            'availability' => $this->availability($user, $parsed, $items, $matchedIds),
             default => $this->plain($this->unknownText()),
         };
     }
@@ -58,7 +59,7 @@ TXT;
      * @param  \Illuminate\Support\Collection<int, Item>  $items
      * @param  array<int, int>  $matchedIds
      */
-    private function availability(User $user, string $question, array $parsed, $items, array $matchedIds): array
+    private function availability(User $user, array $parsed, $items, array $matchedIds): array
     {
         $today = new DateTimeImmutable('today');
         $start = $parsed['start'];
@@ -125,7 +126,7 @@ TXT;
 
         $ruleAnswer = $header.$note."\n".implode("\n", $lines).$footer;
 
-        $llm = $this->llm($question, $period, $facts);
+        $llm = $this->llm($period, $facts);
 
         if ($llm !== null) {
             return ['answer' => $llm, 'mode' => 'llm', 'links' => $links];
@@ -135,7 +136,7 @@ TXT;
     }
 
     /** @param  array<int, string>  $facts */
-    private function llm(string $question, string $period, array $facts): ?string
+    private function llm(string $period, array $facts): ?string
     {
         $key = config('assistant.api_key');
 
@@ -143,13 +144,14 @@ TXT;
             return null;
         }
 
-        $prompt = "Pertanyaan pengguna: {$question}\nPeriode yang dicek: {$period}\n\nDATA:\n- ".implode("\n- ", $facts);
+        $prompt = "Susun jawaban singkat dalam bahasa Indonesia berdasarkan data ketersediaan berikut.\n"
+            ."Periode yang dicek: {$period}\n\nDATA:\n- ".implode("\n- ", $facts);
 
         try {
             $response = Http::withHeaders([
                 'x-api-key' => $key,
                 'anthropic-version' => '2023-06-01',
-            ])->timeout(20)->post('https://api.anthropic.com/v1/messages', [
+            ])->connectTimeout(5)->timeout(15)->post('https://api.anthropic.com/v1/messages', [
                 'model' => config('assistant.model'),
                 'max_tokens' => 400,
                 'system' => self::SYSTEM_PROMPT,
@@ -157,13 +159,17 @@ TXT;
             ]);
 
             if (! $response->successful()) {
+                Log::warning('Assistant provider returned an unsuccessful response.', [
+                    'status' => $response->status(),
+                ]);
+
                 return null;
             }
 
             $text = $response->json('content.0.text');
 
             return is_string($text) && trim($text) !== '' ? trim($text) : null;
-        } catch (Throwable $e) {
+        } catch (ConnectionException $e) {
             report($e);
 
             return null;

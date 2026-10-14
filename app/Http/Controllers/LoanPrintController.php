@@ -12,7 +12,7 @@ class LoanPrintController extends Controller
     {
         $user = auth()->user();
 
-        abort_unless($user->isStaff() || $loan->user_id === $user->id, 403);
+        abort_unless($user->is_active && ($user->isStaff() || (int) $loan->user_id === (int) $user->id), 403);
         abort_if(in_array($loan->status, ['menunggu', 'ditolak', 'dibatalkan'], true), 404, 'Bukti hanya tersedia untuk peminjaman yang sudah disetujui.');
 
         $loan->load(['details.item', 'user', 'processor', 'handedOverBy', 'returnedTo']);

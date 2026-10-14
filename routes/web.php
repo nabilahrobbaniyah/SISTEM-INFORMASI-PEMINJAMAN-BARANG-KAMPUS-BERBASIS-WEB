@@ -17,7 +17,9 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
 });
 
 // Halaman /dashboard bawaan Breeze diarahkan sesuai peran.
@@ -39,7 +41,7 @@ Route::middleware('auth')->group(function () {
 
     // Asisten ketersediaan barang
     Route::get('/asisten', [AssistantController::class, 'index'])->name('assistant.index');
-    Route::post('/asisten/tanya', [AssistantController::class, 'ask'])->middleware('throttle:20,1')->name('assistant.ask');
+    Route::post('/asisten/tanya', [AssistantController::class, 'ask'])->middleware('throttle:10,1')->name('assistant.ask');
     Route::post('/asisten/hapus', [AssistantController::class, 'clear'])->name('assistant.clear');
 
     // Bukti peminjaman (peminjam pemilik atau petugas)

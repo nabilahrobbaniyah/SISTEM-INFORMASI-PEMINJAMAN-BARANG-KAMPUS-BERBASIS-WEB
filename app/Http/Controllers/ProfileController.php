@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
@@ -47,10 +49,29 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+        $deleted = DB::transaction(function () use ($user) {
+            if ($user->isAdmin()) {
+                $admins = User::where('role', 'admin')
+                    ->lockForUpdate()
+                    ->get();
+                $activeAdminCount = $admins->where('is_active', true)->count();
 
-        Auth::logout();
+                if ($admins->count() <= 1 || ($user->is_active && $activeAdminCount <= 1)) {
+                    return false;
+                }
+            }
 
-        $user->delete();
+            Auth::logout();
+            $user->delete();
+
+            return true;
+        });
+
+        if (! $deleted) {
+            return Redirect::route('profile.edit')->withErrors([
+                'password' => 'Akun administrator terakhir tidak dapat dihapus.',
+            ], 'userDeletion');
+        }
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
