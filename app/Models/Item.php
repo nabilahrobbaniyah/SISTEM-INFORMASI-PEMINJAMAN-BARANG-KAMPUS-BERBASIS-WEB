@@ -42,17 +42,24 @@ class Item extends Model
         return $this->hasMany(LoanDetail::class);
     }
 
-    /** Barang aktif dan tidak rusak berat boleh dipinjam. */
+    /** The item's serviceable stock may be loaned while the item is active. */
     public function isBorrowable(): bool
     {
         return $this->is_active && $this->condition !== 'rusak berat';
     }
 
+    /** Units physically on the shelf and ready for handover. */
+    public function checkedOutQuantity(): int
+    {
+        return (int) $this->loanDetails()
+            ->whereHas('loan', fn ($loan) => $loan->where('status', 'dipinjam'))
+            ->sum('quantity');
+    }
+
     /**
-     * Jumlah unit yang sudah dialokasikan pada suatu periode (BR-01).
-     * Pengajuan berstatus "menunggu" tidak mengurangi stok.
-     * Peminjaman "dipinjam" tetap dihitung selama belum dikembalikan,
-     * termasuk yang sudah lewat jatuh tempo.
+     * Unit yang dialokasikan selama periode yang tumpang tindih.
+     * Permintaan yang tertunda tidak mencadangkan stok; pinjaman yang telah keluar tetap berstatus dicadangkan
+     * hingga pengembaliannya tercatat.
      */
     public function reservedBetween(string $start, string $end, ?int $exceptLoanId = null): int
     {
@@ -73,7 +80,7 @@ class Item extends Model
             ->sum('quantity');
     }
 
-    /** Jumlah unit yang masih bisa dipinjam pada periode tertentu. */
+    /** Borrowable serviceable stock after period reservations are deducted. */
     public function availableBetween(string $start, string $end, ?int $exceptLoanId = null): int
     {
         return max(0, $this->total_quantity - $this->reservedBetween($start, $end, $exceptLoanId));
