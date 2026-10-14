@@ -61,9 +61,9 @@ class Item extends Model
     }
 
     /**
-     * Units committed during an overlapping period.
-     * Pending requests do not reserve stock; checked-out loans remain reserved
-     * until their return has been recorded.
+     * Unit yang dialokasikan selama periode yang tumpang tindih.
+     * Permintaan yang tertunda tidak mencadangkan stok; pinjaman yang telah keluar tetap berstatus dicadangkan
+     * hingga pengembaliannya tercatat.
      */
     public function reservedBetween(string $start, string $end, ?int $exceptLoanId = null): int
     {
