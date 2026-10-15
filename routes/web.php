@@ -35,21 +35,21 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Notifikasi dalam aplikasi
-    Route::get('/notifikasi', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::get('/notifikasi/{notification}/buka', [NotificationController::class, 'open'])->name('notifications.open');
-    Route::post('/notifikasi/baca-semua', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::get('/notifikasi', [NotificationController::class, 'index'])->middleware('verified')->name('notifications.index');
+    Route::get('/notifikasi/{notification}/buka', [NotificationController::class, 'open'])->middleware('verified')->name('notifications.open');
+    Route::post('/notifikasi/baca-semua', [NotificationController::class, 'readAll'])->middleware('verified')->name('notifications.read-all');
 
     // Asisten ketersediaan barang
-    Route::get('/asisten', [AssistantController::class, 'index'])->name('assistant.index');
-    Route::post('/asisten/tanya', [AssistantController::class, 'ask'])->middleware('throttle:10,1')->name('assistant.ask');
-    Route::post('/asisten/hapus', [AssistantController::class, 'clear'])->name('assistant.clear');
+    Route::get('/asisten', [AssistantController::class, 'index'])->middleware('verified')->name('assistant.index');
+    Route::post('/asisten/tanya', [AssistantController::class, 'ask'])->middleware(['verified', 'throttle:10,1'])->name('assistant.ask');
+    Route::post('/asisten/hapus', [AssistantController::class, 'clear'])->middleware('verified')->name('assistant.clear');
 
     // Bukti peminjaman (peminjam pemilik atau petugas)
-    Route::get('/peminjaman/{loan}/cetak', [LoanPrintController::class, 'show'])->name('loans.print');
+    Route::get('/peminjaman/{loan}/cetak', [LoanPrintController::class, 'show'])->middleware('verified')->name('loans.print');
 });
 
 // Area peminjam
-Route::middleware(['auth', 'role:peminjam'])->prefix('peminjam')->name('peminjam.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:peminjam'])->prefix('peminjam')->name('peminjam.')->group(function () {
     Route::get('/dashboard', [BorrowerDashboardController::class, 'index'])->name('dashboard');
     Route::get('/katalog', [CatalogController::class, 'index'])->name('catalog');
 
@@ -61,7 +61,7 @@ Route::middleware(['auth', 'role:peminjam'])->prefix('peminjam')->name('peminjam
 });
 
 // Area admin dan petugas
-Route::middleware(['auth', 'role:admin,petugas'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:admin,petugas'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::resource('kategori', CategoryController::class)
@@ -97,6 +97,9 @@ Route::middleware(['auth', 'role:admin,petugas'])->prefix('admin')->name('admin.
             ->except(['show', 'destroy']);
 
         Route::patch('pengguna/{user}/status', [UserController::class, 'toggle'])->name('users.toggle');
+        Route::patch('pengguna/{user}/role', [UserController::class, 'updateRole'])
+            ->middleware('throttle:5,1')
+            ->name('users.role');
 
         Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit.index');
     });

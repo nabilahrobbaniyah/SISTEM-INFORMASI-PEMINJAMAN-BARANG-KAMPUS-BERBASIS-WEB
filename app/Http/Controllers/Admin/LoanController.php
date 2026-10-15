@@ -14,16 +14,14 @@ use RuntimeException;
 
 class LoanController extends Controller
 {
-    public function __construct(private LoanWorkflow $workflow)
-    {
-    }
+    public function __construct(private LoanWorkflow $workflow) {}
 
     public function index(Request $request): View
     {
         $status = $request->input('status');
         $search = $request->input('q');
 
-        $loans = Loan::with(['user', 'details'])
+        $query = Loan::with(['user', 'details'])
             ->when($status === 'terlambat', function ($query) {
                 $query->where('status', 'dipinjam')->whereDate('due_date', '<', now()->toDateString());
             })
@@ -33,10 +31,27 @@ class LoanController extends Controller
                     $w->where('loan_code', 'like', "%{$value}%")
                         ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$value}%"));
                 });
-            })
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+            });
+
+        if ($status === 'menunggu') {
+            $query->orderBy('created_at')->orderBy('id');
+        } elseif ($status === 'disetujui') {
+            $query->orderBy('loan_date')->orderBy('id');
+        } elseif (in_array($status, ['dipinjam', 'terlambat'], true)) {
+            $query->orderBy('due_date')->orderBy('id');
+        } elseif ($status === 'dikembalikan') {
+            $query->orderByDesc('returned_at')->orderByDesc('id');
+        } else {
+            $query->orderByRaw("CASE status WHEN 'menunggu' THEN 0 WHEN 'disetujui' THEN 1 WHEN 'dipinjam' THEN 2 WHEN 'dikembalikan' THEN 3 ELSE 4 END")
+                ->orderByRaw("CASE WHEN status = 'menunggu' THEN created_at END ASC")
+                ->orderByRaw("CASE WHEN status = 'disetujui' THEN loan_date END ASC")
+                ->orderByRaw("CASE WHEN status = 'dipinjam' THEN due_date END ASC")
+                ->orderByRaw("CASE WHEN status = 'dikembalikan' THEN returned_at END DESC")
+                ->orderByDesc('created_at')
+                ->orderByDesc('id');
+        }
+
+        $loans = $query->paginate(10)->withQueryString();
 
         return view('admin.loans.index', [
             'loans' => $loans,

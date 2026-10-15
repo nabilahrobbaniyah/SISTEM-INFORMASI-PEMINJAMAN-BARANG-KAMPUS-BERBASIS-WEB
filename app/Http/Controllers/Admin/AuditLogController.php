@@ -14,7 +14,7 @@ class AuditLogController extends Controller
         $search = $request->input('q');
         $action = $request->input('action');
 
-        $logs = AuditLog::with('user')
+        $logs = AuditLog::with(['user', 'targetUser'])
             ->when($search, function ($query, $value) {
                 $query->where(function ($w) use ($value) {
                     $w->where('description', 'like', "%{$value}%")

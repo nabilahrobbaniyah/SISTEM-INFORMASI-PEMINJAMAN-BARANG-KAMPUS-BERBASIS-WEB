@@ -12,7 +12,8 @@
         <div class="mt-4">
             <x-input-label for="identity_number" value="NIM/NIP" />
             <x-text-input id="identity_number" class="block mt-1 w-full" type="text" name="identity_number"
-                          :value="old('identity_number')" required maxlength="30" autocomplete="off" />
+                          :value="old('identity_number')" required maxlength="12" pattern="(?:[0-9]{8}|[0-9]{12})" autocomplete="off" />
+            <p class="mt-1 text-sm text-gray-600">NIM harus 12 digit, NIP harus 8 digit angka.</p>
             <x-input-error :messages="$errors->get('identity_number')" class="mt-2" />
         </div>
 

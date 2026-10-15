@@ -33,7 +33,7 @@ class RegisteredUserController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'identity_number' => ['required', 'string', 'min:4', 'max:30', 'regex:/^[A-Za-z0-9.-]+$/', 'unique:users,identity_number'],
+            'identity_number' => ['required', 'string', 'regex:/^(?:\d{8}|\d{12})$/', 'unique:users,identity_number'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 

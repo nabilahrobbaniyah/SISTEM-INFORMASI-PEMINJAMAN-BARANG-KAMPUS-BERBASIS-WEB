@@ -28,17 +28,25 @@
     <div class="card">
         <div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
-                <thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Keterangan</th></tr></thead>
+                <thead><tr><th>Waktu</th><th>Pelaku</th><th>Target</th><th>Aksi</th><th>Keterangan</th><th>Perubahan</th><th>Alasan / hasil</th></tr></thead>
                 <tbody>
                 @forelse ($logs as $log)
                     <tr>
                         <td class="text-nowrap">{{ $log->created_at->format('d/m/Y H:i') }}</td>
                         <td>{{ $log->user?->name ?? '-' }}</td>
+                        <td>{{ $log->targetUser?->name ?? '-' }}</td>
                         <td><span class="badge bg-secondary">{{ $log->action }}</span></td>
                         <td>{{ $log->description }}</td>
+                        <td>{{ $log->old_value && $log->new_value ? "{$log->old_value} -> {$log->new_value}" : '-' }}</td>
+                        <td>
+                            {{ $log->reason ?: '-' }}
+                            @if ($log->result)
+                                <span class="badge bg-{{ $log->result === 'berhasil' ? 'success' : 'danger' }}">{{ $log->result }}</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="text-center text-muted py-4">Belum ada catatan.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted py-4">Belum ada catatan.</td></tr>
                 @endforelse
                 </tbody>
             </table>

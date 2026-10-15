@@ -13,6 +13,7 @@ class DashboardController extends Controller
 {
     public function index(): View
     {
+        $today = now()->toDateString();
         $aktif = Item::where('is_active', true)->where('condition', '!=', 'rusak berat');
         $firstMonth = now()->startOfMonth()->subMonths(5);
         $months = collect(range(0, 5))->map(function (int $offset) use ($firstMonth) {
@@ -53,6 +54,32 @@ class DashboardController extends Controller
             ->orderByDesc('loaned_quantity')
             ->limit(5)
             ->get();
+        $handoverToday = Loan::with(['user', 'details'])
+            ->where('status', 'disetujui')
+            ->whereDate('loan_date', $today)
+            ->orderBy('loan_date')
+            ->orderBy('id')
+            ->get();
+        $approvedReadyLoans = Loan::with(['user', 'details'])
+            ->where('status', 'disetujui')
+            ->orderBy('loan_date')
+            ->orderBy('id')
+            ->take(5)
+            ->get();
+        $dueTodayLoans = Loan::with('user')
+            ->where('status', 'dipinjam')
+            ->whereDate('due_date', $today)
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->take(5)
+            ->get();
+        $overdueLoanRecords = Loan::with('user')
+            ->where('status', 'dipinjam')
+            ->whereDate('due_date', '<', $today)
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->take(5)
+            ->get();
 
         return view('admin.dashboard', [
             'totalItems' => (clone $aktif)->count(),
@@ -65,12 +92,19 @@ class DashboardController extends Controller
             'waitingLoans' => Loan::where('status', 'menunggu')->count(),
             'approvedLoans' => Loan::where('status', 'disetujui')->count(),
             'borrowedLoans' => Loan::where('status', 'dipinjam')->count(),
-            'overdueLoans' => Loan::where('status', 'dipinjam')->whereDate('due_date', '<', now()->toDateString())->count(),
+            'handoverTodayCount' => $handoverToday->count(),
+            'dueTodayCount' => Loan::where('status', 'dipinjam')->whereDate('due_date', $today)->count(),
+            'overdueLoans' => Loan::where('status', 'dipinjam')->whereDate('due_date', '<', $today)->count(),
             'pendingLoans' => Loan::with(['user', 'details'])
                 ->where('status', 'menunggu')
-                ->oldest()
+                ->orderBy('created_at')
+                ->orderBy('id')
                 ->take(5)
                 ->get(),
+            'handoverToday' => $handoverToday,
+            'approvedReadyLoans' => $approvedReadyLoans,
+            'dueTodayLoans' => $dueTodayLoans,
+            'overdueLoanRecords' => $overdueLoanRecords,
             'chartData' => [
                 'months' => $months->pluck('label')->all(),
                 'loans' => $months->pluck('loans')->all(),

@@ -52,6 +52,7 @@ class ProfileController extends Controller
         $deleted = DB::transaction(function () use ($user) {
             if ($user->isAdmin()) {
                 $admins = User::where('role', 'admin')
+                    ->orderBy('id')
                     ->lockForUpdate()
                     ->get();
                 $activeAdminCount = $admins->where('is_active', true)->count();

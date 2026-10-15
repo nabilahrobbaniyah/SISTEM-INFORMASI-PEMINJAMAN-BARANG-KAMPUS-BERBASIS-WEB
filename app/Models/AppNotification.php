@@ -14,6 +14,7 @@ class AppNotification extends Model
         'loan_id',
         'title',
         'message',
+        'notification_key',
         'read_at',
     ];
 
@@ -43,6 +44,30 @@ class AppNotification extends Model
                 'title' => $title,
                 'message' => $message,
             ]);
+        }
+    }
+
+    /**
+     * Deliver the same scheduled event at most once to each recipient.
+     *
+     * @param  int|array<int>  $userIds
+     */
+    public static function sendOnce(
+        int|array $userIds,
+        string $notificationKey,
+        string $title,
+        string $message,
+        ?int $loanId = null
+    ): void {
+        foreach (array_unique((array) $userIds) as $userId) {
+            static::firstOrCreate(
+                ['user_id' => $userId, 'notification_key' => $notificationKey],
+                [
+                    'loan_id' => $loanId,
+                    'title' => $title,
+                    'message' => $message,
+                ]
+            );
         }
     }
 }

@@ -15,20 +15,32 @@ use RuntimeException;
 
 class LoanController extends Controller
 {
-    public function __construct(private LoanWorkflow $workflow)
-    {
-    }
+    public function __construct(private LoanWorkflow $workflow) {}
 
     public function index(Request $request): View
     {
         $status = $request->input('status');
 
-        $loans = Loan::with('details')
+        $query = Loan::with('details')
             ->where('user_id', auth()->id())
-            ->when($status, fn ($query, $value) => $query->where('status', $value))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+            ->when($status, fn ($query, $value) => $query->where('status', $value));
+
+        if ($status === 'menunggu') {
+            $query->orderBy('created_at')->orderBy('id');
+        } elseif ($status === 'disetujui') {
+            $query->orderBy('loan_date')->orderBy('id');
+        } elseif ($status === 'dipinjam') {
+            $query->orderBy('due_date')->orderBy('id');
+        } elseif ($status === 'dikembalikan') {
+            $query->orderByRaw('COALESCE(returned_at, updated_at, created_at) DESC')->orderByDesc('id');
+        } else {
+            $query->orderByRaw("CASE WHEN status = 'dikembalikan' THEN 0 ELSE 1 END")
+                ->orderByRaw("CASE WHEN status = 'dikembalikan' THEN returned_at END DESC")
+                ->orderByDesc('created_at')
+                ->orderByDesc('id');
+        }
+
+        $loans = $query->paginate(10)->withQueryString();
 
         return view('peminjam.loans.index', [
             'loans' => $loans,
