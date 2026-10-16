@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Item;
 use App\Models\Loan;
 use App\Services\LoanWorkflow;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
@@ -52,22 +55,113 @@ class LoanController extends Controller
     {
         $items = Item::with('category')
             ->where('is_active', true)
-            ->where('condition', '!=', 'rusak berat')
+            ->where('total_quantity', '>', 0)
             ->orderBy('name')
             ->get();
 
         return view('peminjam.loans.create', [
             'items' => $items,
             'prefillItem' => $request->input('item'),
+            'draft' => $request->session()->get('loan_draft'),
             'loanDate' => $request->input('loan_date', now()->toDateString()),
             'dueDate' => $request->input('due_date', now()->addDay()->toDateString()),
             'maxDays' => Loan::MAX_DAYS,
         ]);
     }
 
+    public function review(Request $request): RedirectResponse
+    {
+        $data = $this->validateLoanData($request->all());
+        $shortages = $this->workflow->shortages($data['items'], $data['loan_date'], $data['due_date']);
+
+        if ($shortages) {
+            throw ValidationException::withMessages(['items' => $shortages]);
+        }
+
+        $request->session()->put('loan_draft', $data);
+        $request->session()->put('loan_confirmation', [
+            'key' => (string) Str::uuid(),
+            'draft' => $data,
+        ]);
+
+        return redirect()->route('peminjam.loans.confirmation');
+    }
+
+    public function confirmation(Request $request): View|RedirectResponse
+    {
+        $confirmation = $request->session()->get('loan_confirmation');
+        if (! is_array($confirmation) || ! isset($confirmation['key'], $confirmation['draft'])) {
+            return redirect()->route('peminjam.loans.create')
+                ->with('error', 'Tidak ada pengajuan yang menunggu konfirmasi.');
+        }
+
+        $draft = $confirmation['draft'];
+        $items = Item::with('category')
+            ->whereIn('id', collect($draft['items'])->pluck('item_id'))
+            ->get()
+            ->keyBy('id');
+
+        return view('peminjam.loans.confirm', compact('draft', 'items'));
+    }
+
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        $key = $request->input('submission_key');
+        $confirmation = $request->session()->get('loan_confirmation');
+        if (! is_string($key) || $key === '') {
+            throw ValidationException::withMessages(['submission_key' => 'Konfirmasi pengajuan tidak valid. Silakan tinjau ulang pengajuan.']);
+        }
+
+        if (! is_array($confirmation) || ! isset($confirmation['key'], $confirmation['draft'])) {
+            $existing = Loan::where('submission_key', $key)->where('user_id', $request->user()->id)->first();
+            if ($existing) {
+                return redirect()->route('peminjam.loans.show', $existing)
+                    ->with('success', 'Pengajuan ini sudah pernah dikirim.');
+            }
+
+            throw ValidationException::withMessages(['submission_key' => 'Sesi konfirmasi berakhir. Silakan ajukan kembali.']);
+        }
+
+        if (! hash_equals($confirmation['key'], $key)) {
+            throw ValidationException::withMessages(['submission_key' => 'Data konfirmasi tidak cocok. Silakan tinjau ulang pengajuan.']);
+        }
+
+        $data = $this->validateLoanData($confirmation['draft']);
+        $shortages = $this->workflow->shortages($data['items'], $data['loan_date'], $data['due_date']);
+        if ($shortages) {
+            $request->session()->forget('loan_confirmation');
+
+            return redirect()->route('peminjam.loans.create')
+                ->withErrors(['items' => 'Ketersediaan berubah sejak pengajuan ditinjau. '.implode(' ', $shortages)]);
+        }
+
+        try {
+            $loan = $this->workflow->submit($request->user(), $data, $key);
+        } catch (RuntimeException $exception) {
+            $request->session()->forget('loan_confirmation');
+
+            return redirect()->route('peminjam.loans.create')
+                ->withErrors(['items' => $exception->getMessage()]);
+        } catch (QueryException $exception) {
+            $loan = Loan::where('submission_key', $key)->where('user_id', $request->user()->id)->first();
+            if (! $loan) {
+                throw $exception;
+            }
+        }
+
+        $request->session()->forget(['loan_confirmation', 'loan_draft']);
+
+        return redirect()->route('peminjam.loans.show', $loan)
+            ->with('success', 'Pengajuan berhasil dikirim. Tunggu persetujuan petugas.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array{loan_date: string, due_date: string, purpose: string, items: array<int, array{item_id: int|string, quantity: int|string}>}
+     */
+    private function validateLoanData(array $input): array
+    {
+        $data = Validator::make($input, [
             'loan_date' => ['required', 'date', 'after_or_equal:today'],
             'due_date' => ['required', 'date', 'after_or_equal:loan_date'],
             'purpose' => ['required', 'string', 'max:500'],
@@ -80,7 +174,7 @@ class LoanController extends Controller
             'items.*.item_id.distinct' => 'Barang yang sama tidak boleh dipilih dua kali.',
             'items.*.item_id.required' => 'Pilih barang pada setiap baris.',
             'items.*.quantity.min' => 'Jumlah minimal 1 unit.',
-        ]);
+        ])->validate();
 
         if (Carbon::parse($data['loan_date'])->addDays(Loan::MAX_DAYS)->lt(Carbon::parse($data['due_date']))) {
             throw ValidationException::withMessages([
@@ -88,23 +182,14 @@ class LoanController extends Controller
             ]);
         }
 
-        $kurang = $this->workflow->shortages($data['items'], $data['loan_date'], $data['due_date']);
-
-        if ($kurang) {
-            throw ValidationException::withMessages(['items' => $kurang]);
-        }
-
-        $loan = $this->workflow->submit($request->user(), $data);
-
-        return redirect()->route('peminjam.loans.show', $loan)
-            ->with('success', 'Pengajuan berhasil dikirim. Tunggu persetujuan petugas.');
+        return $data;
     }
 
     public function show(Loan $loan): View
     {
         abort_unless($loan->user_id === auth()->id(), 403);
 
-        $loan->load(['details.item', 'user', 'processor', 'handedOverBy', 'returnedTo']);
+        $loan->load(['details.item', 'details.returnInspector', 'user', 'processor', 'handedOverBy', 'returnedTo']);
 
         return view('peminjam.loans.show', compact('loan'));
     }

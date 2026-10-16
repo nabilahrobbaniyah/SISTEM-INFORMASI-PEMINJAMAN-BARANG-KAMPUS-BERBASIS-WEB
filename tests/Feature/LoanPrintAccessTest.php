@@ -34,6 +34,39 @@ class LoanPrintAccessTest extends TestCase
         $this->actingAs($staff)->get(route('loans.print', $loan))->assertOk();
     }
 
+    public function test_returned_receipt_shows_each_return_condition_and_quantity(): void
+    {
+        $owner = User::factory()->create(['role' => 'peminjam', 'is_active' => true]);
+        $item = $this->createItem();
+        $loan = Loan::create([
+            'loan_code' => 'PJM-PRINT-RETURNED',
+            'user_id' => $owner->id,
+            'purpose' => 'Uji rincian kondisi pengembalian',
+            'loan_date' => now()->toDateString(),
+            'due_date' => now()->addDay()->toDateString(),
+            'status' => 'dikembalikan',
+            'returned_at' => now(),
+        ]);
+        $loan->details()->create([
+            'item_id' => $item->id,
+            'quantity' => 3,
+            'returned_good_quantity' => 1,
+            'returned_light_damage_quantity' => 1,
+            'returned_heavy_damage_quantity' => 0,
+            'returned_lost_quantity' => 1,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('loans.print', $loan))
+            ->assertOk()
+            ->assertSee('Rincian kondisi pengembalian')
+            ->assertSee('Baik: 1')
+            ->assertSee('Rusak ringan: 1')
+            ->assertSee('Rusak berat: 0')
+            ->assertSee('Hilang: 1')
+            ->assertSee('Belum kembali: 0');
+    }
+
     private function createItem(): Item
     {
         $category = Category::create(['name' => 'Peralatan']);

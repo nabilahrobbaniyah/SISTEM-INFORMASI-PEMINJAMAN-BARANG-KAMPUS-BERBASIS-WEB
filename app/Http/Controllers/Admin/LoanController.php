@@ -8,12 +8,21 @@ use App\Models\Loan;
 use App\Services\LoanWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 
 class LoanController extends Controller
 {
+    public const REJECTION_REASONS = [
+        'Barang tidak tersedia',
+        'Jadwal tidak dapat dipenuhi',
+        'Informasi pengajuan tidak lengkap',
+        'Tidak sesuai ketentuan peminjaman',
+        'lainnya',
+    ];
+
     public function __construct(private LoanWorkflow $workflow) {}
 
     public function index(Request $request): View
@@ -61,7 +70,7 @@ class LoanController extends Controller
 
     public function show(Loan $loan): View
     {
-        $loan->load(['details.item', 'user', 'processor', 'handedOverBy', 'returnedTo']);
+        $loan->load(['details.item', 'details.returnInspector', 'user', 'processor', 'handedOverBy', 'returnedTo']);
 
         // Ketersediaan per periode ditampilkan saat petugas memutuskan persetujuan.
         $availability = [];
@@ -78,7 +87,8 @@ class LoanController extends Controller
         return view('admin.loans.show', [
             'loan' => $loan,
             'availability' => $availability,
-            'conditions' => Item::CONDITIONS,
+            'conditions' => Item::INSPECTION_CONDITIONS,
+            'rejectionReasons' => self::REJECTION_REASONS,
         ]);
     }
 
@@ -90,14 +100,17 @@ class LoanController extends Controller
     public function reject(Request $request, Loan $loan): RedirectResponse
     {
         $data = $request->validate([
-            'rejection_reason' => ['required', 'string', 'min:5', 'max:500'],
+            'reason_code' => ['required', Rule::in(self::REJECTION_REASONS)],
+            'custom_reason' => ['required_if:reason_code,lainnya', 'nullable', 'string', 'min:5', 'max:500'],
         ], [
-            'rejection_reason.required' => 'Alasan penolakan wajib diisi.',
-            'rejection_reason.min' => 'Alasan penolakan terlalu singkat.',
+            'reason_code.required' => 'Pilih alasan penolakan.',
+            'custom_reason.required_if' => 'Jelaskan alasan penolakan lainnya.',
+            'custom_reason.min' => 'Alasan penolakan terlalu singkat.',
         ]);
+        $reason = $data['reason_code'] === 'lainnya' ? $data['custom_reason'] : $data['reason_code'];
 
         return $this->run(
-            fn () => $this->workflow->reject($loan, auth()->user(), $data['rejection_reason']),
+            fn () => $this->workflow->reject($loan, auth()->user(), $reason),
             'Pengajuan ditolak.'
         );
     }
@@ -111,17 +124,37 @@ class LoanController extends Controller
     {
         $data = $request->validate([
             'returns' => ['required', 'array'],
-            'returns.*.condition' => ['required', Rule::in(Item::CONDITIONS)],
+            'returns.*.good_quantity' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'returns.*.light_damage_quantity' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'returns.*.heavy_damage_quantity' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'returns.*.lost_quantity' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'returns.*.note' => ['nullable', 'string', 'max:255'],
+            'returns.*.photo' => ['nullable', 'image', 'max:5120'],
             'return_notes' => ['nullable', 'string', 'max:500'],
-        ], [
-            'returns.*.condition.required' => 'Kondisi setiap barang wajib dipilih.',
         ]);
 
-        return $this->run(
-            fn () => $this->workflow->receiveReturn($loan, auth()->user(), $data['returns'], $data['return_notes'] ?? null),
-            'Pengembalian barang dicatat.'
-        );
+        $storedFiles = [];
+        foreach ($data['returns'] as $detailId => &$return) {
+            if ($request->file("returns.{$detailId}.photo")) {
+                $path = $request->file("returns.{$detailId}.photo")->store('returns', 'local');
+                $return['photo_path'] = $path;
+                $storedFiles[] = $path;
+            }
+            unset($return['photo']);
+        }
+        unset($return);
+
+        try {
+            $this->workflow->receiveReturn($loan, auth()->user(), $data['returns'], $data['return_notes'] ?? null);
+        } catch (RuntimeException $exception) {
+            foreach ($storedFiles as $path) {
+                Storage::disk('local')->delete($path);
+            }
+
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Jumlah dan kondisi pengembalian berhasil dicatat.');
     }
 
     private function run(callable $action, string $successMessage): RedirectResponse

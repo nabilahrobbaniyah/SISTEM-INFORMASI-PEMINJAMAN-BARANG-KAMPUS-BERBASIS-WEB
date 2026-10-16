@@ -29,7 +29,7 @@ class CatalogController extends Controller
 
         $items = Item::with('category')
             ->where('is_active', true)
-            ->where('condition', '!=', 'rusak berat')
+            ->where('total_quantity', '>', 0)
             ->when($search, function ($query, $value) {
                 $query->where(function ($w) use ($value) {
                     $w->where('name', 'like', "%{$value}%")

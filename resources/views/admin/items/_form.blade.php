@@ -26,25 +26,19 @@
         </select>
         @error('category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
-    <div class="col-md-6">
-        <label for="condition" class="form-label">Kondisi</label>
-        <select id="condition" name="condition" class="form-select @error('condition') is-invalid @enderror" required>
-            @foreach ($conditions as $kondisi)
-                <option value="{{ $kondisi }}" @selected(old('condition', $item->condition ?? 'baik') === $kondisi)>
-                    {{ ucfirst($kondisi) }}
-                </option>
-            @endforeach
-        </select>
-        @error('condition')<div class="invalid-feedback">{{ $message }}</div>@enderror
-    </div>
-
     <div class="col-12">
-        <label for="total_quantity" class="form-label">Jumlah total layak pinjam</label>
-        <input type="number" id="total_quantity" name="total_quantity" min="{{ $isEdit ? 0 : 1 }}"
-               value="{{ old('total_quantity', $item->total_quantity) }}"
-               class="form-control @error('total_quantity') is-invalid @enderror" required>
-        @error('total_quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
-        <div class="form-text">Stok di tempat dihitung otomatis. Stok total tidak dapat dikurangi selama ada peminjaman aktif atau disetujui.</div>
+        @if (! $isEdit)
+            <label for="initial_quantity" class="form-label">Jumlah awal tersedia</label>
+            <input type="number" id="initial_quantity" name="initial_quantity" min="1"
+                   value="{{ old('initial_quantity', 1) }}"
+                   class="form-control @error('initial_quantity') is-invalid @enderror" required>
+            @error('initial_quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            <div class="form-text">Saldo awal dicatat sebagai transaksi penambahan inventaris.</div>
+        @else
+            <div class="alert alert-info mb-0">
+                Jumlah stok hanya dapat diubah melalui transaksi inventaris pada halaman detail barang.
+            </div>
+        @endif
     </div>
 
     <div class="col-12">

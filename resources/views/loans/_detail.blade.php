@@ -62,9 +62,7 @@
                         <th class="text-center">Tersedia pada periode</th>
                     @endif
                 @endisset
-                @if ($loan->status === 'dikembalikan')
-                    <th>Kondisi kembali</th><th>Catatan</th>
-                @endif
+                <th>Baik</th><th>Rusak ringan</th><th>Rusak berat</th><th>Hilang</th><th>Belum kembali</th><th>Pemeriksa / waktu</th><th>Catatan</th>
             </tr>
             </thead>
             <tbody>
@@ -81,10 +79,18 @@
                             </td>
                         @endif
                     @endisset
-                    @if ($loan->status === 'dikembalikan')
-                        <td>{{ ucfirst($detail->return_condition ?? '-') }}</td>
-                        <td>{{ $detail->return_note ?: '-' }}</td>
-                    @endif
+                    <td>{{ $detail->returned_good_quantity }}</td>
+                    <td>{{ $detail->returned_light_damage_quantity }}</td>
+                    <td>{{ $detail->returned_heavy_damage_quantity }}</td>
+                    <td>{{ $detail->returned_lost_quantity }}</td>
+                    <td>{{ $detail->outstandingQuantity() }}</td>
+                    <td>{{ $detail->returnInspector?->name ?? '-' }} @if ($detail->return_inspected_at) ({{ $detail->return_inspected_at->format('d/m/Y H:i') }}) @endif</td>
+                    <td>
+                        {{ $detail->return_note ?: '-' }}
+                        @if ($detail->return_photo)
+                            <a href="{{ route('loans.evidence', $detail) }}">Bukti</a>
+                        @endif
+                    </td>
                 </tr>
             @endforeach
             </tbody>

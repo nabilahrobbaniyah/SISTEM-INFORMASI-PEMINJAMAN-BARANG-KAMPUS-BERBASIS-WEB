@@ -39,9 +39,9 @@
         </div>
         <div class="form-text mt-2">
             @if ($hasPeriod)
-                Ketersediaan dihitung untuk periode yang dipilih.
+                Jumlah tersedia menunjukkan berapa unit yang bisa dipinjam selama tanggal yang dipilih, setelah memperhitungkan peminjaman lain.
             @else
-                Isi kedua tanggal untuk melihat ketersediaan pada periode tertentu. Tanpa tanggal, stok yang tampil adalah stok fisik di tempat.
+                Isi tanggal pinjam dan kembali untuk mengetahui jumlah yang bisa dipinjam pada periode tersebut. Tanpa tanggal, jumlah tersedia menunjukkan stok yang saat ini ada di rak.
             @endif
         </div>
     </form>
@@ -76,7 +76,7 @@
                                 </span>
                             </div>
                             <h2 class="h5 card-title">{{ $item->name }}</h2>
-                            <p class="small text-muted mb-1">{{ $item->category->name }} · {{ ucfirst($item->condition) }}</p>
+                            <p class="small text-muted mb-1">{{ $item->category->name }}</p>
                             <p class="small text-muted">{{ $item->location }}</p>
                             <p class="card-text flex-grow-1">{{ \Illuminate\Support\Str::limit($item->description ?: 'Tidak ada deskripsi.', 120) }}</p>
                             @if ($item->shown_available > 0)
@@ -100,7 +100,7 @@
             <div class="table-responsive">
                 <table class="table table-hover mb-0 align-middle">
                     <thead>
-                    <tr><th>Barang</th><th>Kategori</th><th>Kondisi</th><th>Lokasi</th><th class="text-center">Tersedia</th><th class="text-end">Aksi</th></tr>
+                    <tr><th>Barang</th><th>Kategori</th><th>Lokasi</th><th class="text-center">Tersedia</th><th class="text-end">Aksi</th></tr>
                     </thead>
                     <tbody>
                     @forelse ($items as $item)
@@ -115,7 +115,6 @@
                                 </div>
                             </td>
                             <td>{{ $item->category->name }}</td>
-                            <td>{{ ucfirst($item->condition) }}</td>
                             <td>{{ $item->location }}</td>
                             <td class="text-center"><span class="badge {{ $item->shown_available > 0 ? 'bg-success' : 'bg-secondary' }}">{{ $item->shown_available }}</span></td>
                             <td class="text-end">

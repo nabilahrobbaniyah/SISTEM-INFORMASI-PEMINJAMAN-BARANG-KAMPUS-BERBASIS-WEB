@@ -13,6 +13,7 @@
         table.info td { padding: 2px 4px; vertical-align: top; }
         table.grid th, table.grid td { border: 1px solid #000; padding: 4px 8px; text-align: left; }
         table.grid th.c, table.grid td.c { text-align: center; }
+        .return-breakdown { font-size: 10pt; line-height: 1.45; }
         .sign { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
         .sign div { width: 40%; }
         .sign .space { height: 70px; }
@@ -50,7 +51,7 @@
         <tr>
             <th class="c" style="width:6%">No</th><th>Kode</th><th>Nama barang</th><th class="c">Jumlah</th>
             @if ($loan->status === 'dikembalikan')
-                <th>Kondisi kembali</th>
+                <th>Rincian kondisi pengembalian</th>
             @endif
         </tr>
         </thead>
@@ -62,7 +63,17 @@
                 <td>{{ $detail->item->name }}</td>
                 <td class="c">{{ $detail->quantity }}</td>
                 @if ($loan->status === 'dikembalikan')
-                    <td>{{ ucfirst($detail->return_condition ?? '-') }}</td>
+                    <td class="return-breakdown">
+                        Baik: {{ $detail->returned_good_quantity }}<br>
+                        Rusak ringan: {{ $detail->returned_light_damage_quantity }}<br>
+                        Rusak berat: {{ $detail->returned_heavy_damage_quantity }}<br>
+                        Hilang: {{ $detail->returned_lost_quantity }}<br>
+                        Belum kembali: {{ $detail->outstandingQuantity() }}
+                        <br><span class="muted">Diperiksa oleh {{ $detail->returnInspector?->name ?? '-' }}{{ $detail->return_inspected_at ? ' pada '.$detail->return_inspected_at->format('d/m/Y H:i') : '' }}</span>
+                        @if ($detail->return_note)
+                            <br><span class="muted">Catatan: {{ $detail->return_note }}</span>
+                        @endif
+                    </td>
                 @endif
             </tr>
         @endforeach

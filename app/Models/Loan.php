@@ -45,6 +45,7 @@ class Loan extends Model
         'returned_to',
         'returned_at',
         'return_notes',
+        'submission_key',
     ];
 
     protected function casts(): array

@@ -19,10 +19,12 @@ class AdminDashboardTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Tren peminjaman dan keterlambatan')
-            ->assertSee('Distribusi status peminjaman');
+            ->assertSee('Distribusi status peminjaman')
+            ->assertSee('Pengajuan yang menunggu')
+            ->assertSee('Unit Siap Dipinjam');
     }
 
-    public function test_staff_dashboard_lists_today_handover_due_and_overdue_loans(): void
+    public function test_staff_dashboard_shows_handover_and_overdue_lists_without_redundant_tables(): void
     {
         $this->travelTo(now()->setDate(2026, 10, 15)->setTime(9, 0));
         $staff = User::factory()->create(['role' => 'petugas']);
@@ -35,11 +37,12 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($staff)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Serah-terima terjadwal hari ini')
-            ->assertSee('Disetujui, belum diserahterimakan')
+            ->assertDontSee('Disetujui, belum diserahterimakan')
             ->assertSee('PJM-TODAY-HANDOVER')
-            ->assertSee('PJM-FUTURE-HANDOVER')
-            ->assertSee('PJM-DUE-TODAY')
-            ->assertSee('PJM-OVERDUE');
+            ->assertDontSee('PJM-FUTURE-HANDOVER')
+            ->assertDontSee('PJM-DUE-TODAY')
+            ->assertSee('PJM-OVERDUE')
+            ->assertDontSee('Tidak ada pengembalian yang jatuh tempo hari ini.');
     }
 
     private function createLoan(User $borrower, string $code, string $status, string $loanDate, string $dueDate): Loan
