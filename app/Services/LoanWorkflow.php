@@ -332,8 +332,8 @@ class LoanWorkflow
 
                 foreach ([
                     'returned_good' => [$good, 'tersedia', 'Barang kembali dalam kondisi baik.'],
-                    'light_damage_reported' => [$lightDamage, 'rusak ringan', 'Rusak ringan; menunggu penjadwalan perbaikan.'],
-                    'heavy_damage_reported' => [$heavyDamage, 'rusak berat', 'Rusak berat; tidak dapat dipinjam.'],
+                    'light_damage_reported' => [$lightDamage, 'rusak ringan', 'Rusak ringan. menunggu penjadwalan perbaikan.'],
+                    'heavy_damage_reported' => [$heavyDamage, 'rusak berat', 'Rusak berat. tidak dapat dipinjam.'],
                     'lost_reported' => [$lost, 'hilang', (string) ($input['note'] ?? 'Kehilangan dicatat saat pengembalian.')],
                 ] as $action => [$quantity, $targetState, $description]) {
                     if ($quantity > 0) {

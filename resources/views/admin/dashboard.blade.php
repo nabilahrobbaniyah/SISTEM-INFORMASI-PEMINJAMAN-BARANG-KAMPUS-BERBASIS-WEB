@@ -77,7 +77,7 @@
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header">Distribusi status peminjaman</div>
-                <div class="card-body"><canvas id="loanStatusChart" role="img" aria-label="Grafik distribusi status peminjaman"></canvas></div>
+                <div class="card-body" style="height: 250px;"><canvas id="loanStatusChart" role="img" aria-label="Grafik distribusi status peminjaman"></canvas></div>
             </div>
         </div>
         <div class="col-lg-6">
@@ -224,7 +224,7 @@
                 labels: chartData.statuses.map((status) => status.label),
                 datasets: [{ data: chartData.statuses.map((status) => status.total), backgroundColor: statusColors }],
             },
-            options: { responsive: true },
+            options: {responsive: true, maintainAspectRatio: false, plugins: { legend: {position: 'right'} } },
         });
     </script>
 @endpush
